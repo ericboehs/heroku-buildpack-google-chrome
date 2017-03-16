@@ -12,7 +12,7 @@ BUILD_DIR=$1
 CACHE_DIR=$2
 LP_DIR=`cd $(dirname $0); cd ..; pwd`
 
-PACKAGES="https://dl.google.com/linux/direct/google-chrome-unstable_current_amd64.deb libxss1"
+PACKAGES="https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb libxss1 xvfb fluxbox x11vnc dbus libasound2 libqt4-dbus libqt4-network libqtcore4 libqtgui4  libpython2.7 libqt4-xml libaudio2 libmng1 fontconfig liblcms1 lib32stdc++6 lib32asound2 ia32-libs libc6-i386 lib32gcc1 nano"
 
 function error() {
   echo " !     $*" >&2
@@ -83,6 +83,8 @@ export INCLUDE_PATH="\$HOME/.apt/usr/include:\$HOME/.apt/usr/include/x86_64-linu
 export CPATH="\$INCLUDE_PATH"
 export CPPPATH="\$INCLUDE_PATH"
 export PKG_CONFIG_PATH="\$HOME/.apt/usr/lib/x86_64-linux-gnu/pkgconfig:\$HOME/.apt/usr/lib/i386-linux-gnu/pkgconfig:\$HOME/.apt/usr/lib/pkgconfig:\$PKG_CONFIG_PATH"
+Xvfb :1 -screen 5 1024x768x8 &
+export DISPLAY=:1.5
 EOF
 
 export PATH="$BUILD_DIR/.apt/usr/bin:$PATH"
@@ -99,11 +101,12 @@ export | grep -E -e ' (PATH|LD_LIBRARY_PATH|LIBRARY_PATH|INCLUDE_PATH|CPATH|CPPP
 topic "Rewrite package-config files"
 find $BUILD_DIR/.apt -type f -ipath '*/pkgconfig/*.pc' | xargs --no-run-if-empty -n 1 sed -i -e 's!^prefix=\(.*\)$!prefix='"$BUILD_DIR"'/.apt\1!g'
 
-topic "Creating google-chrome-unstable shim"
-SHIM=$BUILD_DIR/.apt/usr/bin/google-chrome-unstable
-rm $SHIM
-cat <<EOF >$SHIM
-#!/usr/bin/env bash
-/app/.apt/opt/google/chrome-unstable/google-chrome-unstable --headless --no-sandbox --disable-gpu \$@
-EOF
-chmod +x $SHIM
+topic "Fixing Google Chrome symlinks"
+
+rm -f $BUILD_DIR/.apt/usr/bin/google-chrome
+ln -s /app/.apt/opt/google/chrome/google-chrome $BUILD_DIR/.apt/usr/bin/google-chrome
+
+topic "Patching Xvfb to run in a different path"
+
+ln -s /app/.apt/usr/bin $BUILD_DIR/xub
+sed -i s:/usr/bin:/app/xub: $BUILD_DIR/.apt/usr/bin/Xvfb
